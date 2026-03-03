@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>KercMap | TheoTown Urban Logic</title>
+    <style>
+        body { margin: 0; background: #050505; color: #e0e0e0; font-family: 'Fira Code', monospace; overflow: hidden; }
+        canvas { display: block; }
+        
+        #hud { position: absolute; top: 20px; left: 20px; z-index: 10; pointer-events: none; }
+        .stats-box { background: rgba(10, 10, 10, 0.9); padding: 15px; border: 2px solid #00b4d8; border-radius: 4px; box-shadow: 5px 5px 0px #00b4d8; }
+        
+        #doc-panel { 
+            position: absolute; right: -420px; top: 0; width: 380px; height: 100%; 
+            background: #0f0f0f; border-left: 3px solid #00b4d8; transition: 0.4s; padding: 25px; z-index: 100;
+        }
+        #doc-panel.active { right: 0; }
+        .code-dna { background: #000; color: #00ffaa; padding: 12px; font-size: 11px; border: 1px solid #333; overflow-x: auto; }
+        .district-tag { color: #ffd700; font-size: 18px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div id="hud">
+        <div class="stats-box">
+            <h2 style="margin:0; font-size: 16px; color: #00b4d8;">🏙️ KERC-URBAN CORE</h2>
+            <div id="time-text">Time: 08:00 (Morning)</div>
+            <div id="district-name" class="district-tag">District: Loading...</div>
+            <small style="opacity:0.5;">Isometric Grid: Active | Roads: Connected</small>
+        </div>
+    </div>
+
+    <div id="doc-panel">
+        <h2 id="inspect-title">District Insight</h2>
+        <p id="inspect-desc">Linguistic DNA generated via Python Markov Chains.</p>
+        
+        <p style="color: #00b4d8; font-size: 12px;">Python Naming Logic (src/api/linguistics.py):</p>
+        <pre class="code-dna" id="python-code">
+def generate_district_name(seed):
+    prefixes = ["Kerc", "New", "Upper", "South"]
+    suffixes = ["ville", "burg", "port", "district"]
+    return random.choice(prefixes) + random.choice(suffixes)
+        </pre>
+        
+        <p style="color: #00b4d8; font-size: 12px;">C++ Road Logic (src/core/roads.cpp):</p>
+        <pre class="code-dna">
+void ConnectBlocks(Block a, Block b) {
+    DrawAsphalt(a.center, b.center);
+    AddTrafficLights(intersection);
+}
+        </pre>
+        <button onclick="location.reload()" style="width:100%; padding:12px; background:#00b4d8; border:none; color:#000; font-weight:bold; cursor:pointer;">RE-GENERATE WORLD</button>
+    </div>
+
+    <canvas id="cityCanvas"></canvas>
+
+<script>
+    const canvas = document.getElementById('cityCanvas');
+    const ctx = canvas.getContext('2d');
+    const panel = document.getElementById('doc-panel');
+    
+    let time = 800; // 0 to 2400
+    const buildings = [];
+    const gridSize = 100;
+    const roadWidth = 20;
+
+    // "Python-style" name generator
+    const prefixes = ["Kerc", "Zion", "Neo", "West", "North", "Iron", "Aqua"];
+    const suffixes = ["grad", "bridge", "peak", "valley", "center", "row", "side"];
+    const districtName = prefixes[Math.floor(Math.random()*prefixes.length)] + " " + suffixes[Math.floor(Math.random()*suffixes.length)];
+
+    function init() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        document.getElementById('district-name').innerText = "District: " + districtName;
+        generateCity();
+        animate();
+    }
+
+    function generateCity() {
+        for (let x = 100; x < canvas.width - 100; x += gridSize) {
+            for (let y = 100; y < canvas.height - 100; y += gridSize) {
+                if (Math.random() > 0.3) {
+                    buildings.push({
+                        x: x + roadWidth/2 + 5,
+                        y: y + roadWidth/2 + 5,
+                        w: 40,
+                        h: Math.random() * 80 + 30,
+                        type: Math.random() > 0.5 ? 'Apartment' : 'Office'
+                    });
+                }
+            }
+        }
+    }
+
+    function drawRoads(isNight) {
+        ctx.strokeStyle = isNight ? '#111' : '#222';
+        ctx.lineWidth = roadWidth;
+        ctx.setLineDash([]);
+        
+        // Horizontal & Vertical roads
+        for (let x = 100; x < canvas.width - 50; x += gridSize) {
+            ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+        }
+        for (let y = 100; y < canvas.height - 50; y += gridSize) {
+            ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+        }
+
+        // Road Markings
+        ctx.strokeStyle = isNight ? '#333' : '#555';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([10, 15]);
+        for (let x = 100; x < canvas.width - 50; x += gridSize) {
+            ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+        }
+    }
+
+    function drawBuilding(b, isNight) {
+        const {x, y, w, h} = b;
+        const isoX = 15; // Isometric offset
+
+        // Side wall
+        ctx.fillStyle = isNight ? '#0a152b' : '#333';
+        ctx.beginPath();
+        ctx.moveTo(x + w, y);
+        ctx.lineTo(x + w + isoX, y - isoX);
+        ctx.lineTo(x + w + isoX, y - isoX - h);
+        ctx.lineTo(x + w, y - h);
+        ctx.fill();
+
+        // Front wall
+        ctx.fillStyle = isNight ? '#152545' : '#444';
+        ctx.fillRect(x, y - h, w, h);
+
+        // Windows
+        if (isNight || Math.random() > 0.7) {
+            ctx.fillStyle = isNight ? '#ffd700' : '#111';
+            for (let wx = x + 5; wx < x + w - 5; wx += 10) {
+                for (let wy = y - h + 10; wy < y - 10; wy += 20) {
+                    if (Math.random() > 0.2) ctx.fillRect(wx, wy, 4, 8);
+                }
+            }
+        }
+
+        // Roof
+        ctx.fillStyle = isNight ? '#050a1a' : '#222';
+        ctx.beginPath();
+        ctx.moveTo(x, y - h);
+        ctx.lineTo(x + w, y - h);
+        ctx.lineTo(x + w + isoX, y - h - isoX);
+        ctx.lineTo(x + isoX, y - h - isoX);
+        ctx.fill();
+    }
+
+    function animate() {
+        time = (time + 1) % 2400;
+        const hour = Math.floor(time / 100);
+        const isNight = hour < 6 || hour > 19;
+        
+        // Background logic
+        let bg = isNight ? '#050a14' : (hour > 17 || hour < 8 ? '#3d2b1f' : '#2d4d2d');
+        ctx.fillStyle = bg;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        document.getElementById('time-text').innerText = `Time: ${hour}:00 ${isNight ? '(Night)' : '(Day)'}`;
+
+        drawRoads(isNight);
+        buildings.forEach(b => drawBuilding(b, isNight));
+
+        requestAnimationFrame(animate);
+    }
+
+    canvas.addEventListener('click', () => {
+        panel.classList.add('active');
+        document.getElementById('inspect-title').innerText = districtName + " Unit Info";
+    });
+
+    window.onresize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; };
+    init();
+
+</script>
+</body>
+</html>
